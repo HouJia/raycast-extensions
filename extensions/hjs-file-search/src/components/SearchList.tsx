@@ -3,12 +3,13 @@ import { useCachedPromise } from "@raycast/utils";
 import { useMemo, useState } from "react";
 import { parse } from "../core/parse";
 import { hintInfo } from "../core/hint";
-import { copyPath, openPath, revealInFileManager } from "../actions/fileActions";
+import { copyPath, copyPathLine, openPath, revealInFileManager } from "../actions/fileActions";
 import { buildExpandQuery } from "../search/alfredJson";
+import { formatGroupDetailMarkdown, formatPathDetailMarkdown } from "../search/contentDetail";
 import { runNameSearch } from "../search/runNameSearch";
 import { runContentSearch } from "../search/runContentSearch";
 import { runListSearch, type FlProfile } from "../search/runListSearch";
-import type { ListProfile, SearchItem } from "../search/types";
+import { isContentProfile, type ContentProfile, type ListProfile, type SearchItem } from "../search/types";
 import { FcExpandList } from "./FcExpandList";
 
 type Prefs = {
@@ -46,13 +47,15 @@ function isNameProfile(p: ListProfile): p is "ff" | "ffw" | "fd" {
 export function SearchList(props: { profile: ListProfile; initialQuery?: string }) {
   const prefs = getPreferenceValues<Prefs>();
   const [query, setQuery] = useState(props.initialQuery || "");
+  const [selectedId, setSelectedId] = useState<string | undefined>();
 
   const parsed = useMemo(() => parse(query || ""), [query]);
+  const content = isContentProfile(props.profile);
 
   const { data, isLoading, error, revalidate } = useCachedPromise(
     async (q: string, profile: ListProfile) => {
-      if (profile === "fc") {
-        return runContentSearch({ query: q, engineDir: prefs.engineRoot });
+      if (isContentProfile(profile)) {
+        return runContentSearch({ query: q, profile, engineDir: prefs.engineRoot });
       }
       if (FL_PROFILES.has(profile)) {
         return runListSearch({ profile: profile as FlProfile, query: q, qfaDir: prefs.qfaRoot });
@@ -67,7 +70,7 @@ export function SearchList(props: { profile: ListProfile; initialQuery?: string 
   );
 
   const hint = useMemo(() => {
-    if (props.profile === "fc" || FL_PROFILES.has(props.profile)) return null;
+    if (content || FL_PROFILES.has(props.profile)) return null;
     if (!data?.items?.length) return null;
     const paths = data.items.filter((x) => x.valid && x.path).map((x) => x.path);
     if (!paths.length) return null;
@@ -76,17 +79,61 @@ export function SearchList(props: { profile: ListProfile; initialQuery?: string 
     } catch {
       return null;
     }
-  }, [parsed, data, props.profile]);
+  }, [parsed, data, props.profile, content]);
 
   const items = data?.items || [];
+  const selected = items.find((i) => i.id === selectedId) || items[0];
+  const selectedIsGroup = selected?.kind === "group";
+  const expandQuery =
+    selectedIsGroup && selected
+      ? selected.variables?.expand_query || buildExpandQuery(query, selected.path)
+      : "";
+
+  // 方案 A：选中 group 时拉逐行命中填 Detail（keyed by path+expandQuery，避免错文件）
+  const {
+    data: detailLines,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useCachedPromise(
+    async (eq: string, pathKey: string, profile: ContentProfile) => {
+      if (!eq || !pathKey) return [] as SearchItem[];
+      const res = runContentSearch({
+        query: eq,
+        profile,
+        engineDir: prefs.engineRoot,
+      });
+      return res.items.filter((i) => i.kind === "file" && i.valid && i.line && i.path === pathKey);
+    },
+    [
+      selectedIsGroup ? expandQuery : "",
+      selectedIsGroup && selected ? selected.path : "",
+      content ? (props.profile as ContentProfile) : "fc",
+    ],
+    { keepPreviousData: false },
+  );
+
+  const showDetail = content && Boolean(selected) && selected.kind !== "hint" && selected.kind !== "back";
+
+  const detailMarkdown = useMemo(() => {
+    if (!selected || !content) return undefined;
+    if (selected.kind === "group") {
+      return formatGroupDetailMarkdown(selected, detailLines || [], {
+        loading: detailLoading,
+        error: detailError ? String(detailError) : undefined,
+      });
+    }
+    return formatPathDetailMarkdown(selected);
+  }, [selected, content, detailLines, detailLoading, detailError]);
 
   return (
     <List
       isLoading={isLoading}
       filtering={false}
+      isShowingDetail={showDetail}
       searchBarPlaceholder={`${props.profile} · 同 Alfred 语法`}
       onSearchTextChange={setQuery}
       searchText={query}
+      onSelectionChange={(id) => setSelectedId(id || undefined)}
       throttle
     >
       {error ? (
@@ -109,79 +156,122 @@ export function SearchList(props: { profile: ListProfile; initialQuery?: string 
         />
       ) : null}
       {!error &&
-        items.map((it) => (
-          <List.Item
-            key={it.id}
-            id={it.id}
-            title={it.title}
-            subtitle={it.subtitle}
-            icon={iconFor(it)}
-            actions={
-              it.valid || it.kind === "group" ? (
-                <ActionPanel>
-                  {it.kind === "group" ? (
-                    <>
-                      <Action
-                        title="打开最佳行"
-                        icon={Icon.ArrowNe}
-                        onAction={() =>
-                          openPath(it.path, prefs.openWithEditor, { line: it.line, col: it.col })
-                        }
-                      />
-                      <Action.Push
-                        title="展开这个文件的命中"
-                        icon={Icon.List}
-                        shortcut={{ modifiers: ["ctrl"], key: "return" }}
-                        target={
-                          <FcExpandList
-                            expandQuery={
-                              it.variables?.expand_query || buildExpandQuery(query, it.path)
+        items.map((it) => {
+          const isSelGroup = it.kind === "group";
+          const eq = isSelGroup
+            ? it.variables?.expand_query || buildExpandQuery(query, it.path)
+            : "";
+          const hitsForActions =
+            selected?.id === it.id && isSelGroup ? (detailLines || []).slice(0, 12) : [];
+
+          return (
+            <List.Item
+              key={it.id}
+              id={it.id}
+              title={it.title}
+              subtitle={showDetail ? undefined : it.subtitle}
+              icon={iconFor(it)}
+              detail={
+                showDetail && selected?.id === it.id && detailMarkdown ? (
+                  <List.Item.Detail isLoading={isSelGroup && detailLoading} markdown={detailMarkdown} />
+                ) : showDetail ? (
+                  <List.Item.Detail markdown={formatPathDetailMarkdown(it)} />
+                ) : undefined
+              }
+              actions={
+                it.valid || it.kind === "group" ? (
+                  <ActionPanel>
+                    {it.kind === "group" ? (
+                      <>
+                        <Action
+                          title="打开最佳行"
+                          icon={Icon.ArrowNe}
+                          onAction={() =>
+                            openPath(it.path, prefs.openWithEditor, { line: it.line, col: it.col })
+                          }
+                        />
+                        {hitsForActions.map((h) => (
+                          <Action
+                            key={`open-${h.line}-${h.id}`}
+                            title={`打开第 ${h.line} 行`}
+                            icon={Icon.Hashtag}
+                            onAction={() =>
+                              openPath(h.path || it.path, prefs.openWithEditor, {
+                                line: h.line,
+                                col: h.col,
+                              })
                             }
-                            groupTitle={it.title}
                           />
-                        }
-                      />
-                      <Action
-                        title="在文件管理器中显示"
-                        icon={Icon.Finder}
-                        shortcut={{ modifiers: ["cmd"], key: "return" }}
-                        onAction={() => revealInFileManager(it.path, prefs.fileManagerPrefer || "qspace")}
-                      />
-                      <Action
-                        title="复制路径"
-                        icon={Icon.Clipboard}
-                        shortcut={{ modifiers: ["opt"], key: "return" }}
-                        onAction={() => copyPath(it.path, { hud: "已复制文件路径" })}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Action
-                        title="打开"
-                        icon={Icon.ArrowNe}
-                        onAction={() =>
-                          openPath(it.path, prefs.openWithEditor, { line: it.line, col: it.col })
-                        }
-                      />
-                      <Action
-                        title="在文件管理器中显示"
-                        icon={Icon.Finder}
-                        shortcut={{ modifiers: ["cmd"], key: "return" }}
-                        onAction={() => revealInFileManager(it.path, prefs.fileManagerPrefer || "qspace")}
-                      />
-                      <Action
-                        title="复制路径"
-                        icon={Icon.Clipboard}
-                        shortcut={{ modifiers: ["opt"], key: "return" }}
-                        onAction={() => copyPath(it.path)}
-                      />
-                    </>
-                  )}
-                </ActionPanel>
-              ) : undefined
-            }
-          />
-        ))}
+                        ))}
+                        {hitsForActions[0] ? (
+                          <Action
+                            title={`复制 ${it.path.split("/").pop()}:${hitsForActions[0].line}`}
+                            icon={Icon.Clipboard}
+                            shortcut={{ modifiers: ["opt"], key: "return" }}
+                            onAction={() => copyPathLine(it.path, hitsForActions[0].line)}
+                          />
+                        ) : (
+                          <Action
+                            title="复制路径"
+                            icon={Icon.Clipboard}
+                            shortcut={{ modifiers: ["opt"], key: "return" }}
+                            onAction={() => copyPath(it.path, { hud: "已复制文件路径" })}
+                          />
+                        )}
+                        <Action
+                          title="在文件管理器中显示"
+                          icon={Icon.Finder}
+                          shortcut={{ modifiers: ["cmd"], key: "return" }}
+                          onAction={() =>
+                            revealInFileManager(it.path, prefs.fileManagerPrefer || "qspace")
+                          }
+                        />
+                        <Action.Push
+                          title="在独立列表展开（次要）"
+                          icon={Icon.List}
+                          shortcut={{ modifiers: ["ctrl"], key: "return" }}
+                          target={
+                            <FcExpandList
+                              expandQuery={eq}
+                              groupTitle={it.title}
+                              profile={content ? (props.profile as ContentProfile) : "fc"}
+                            />
+                          }
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Action
+                          title="打开"
+                          icon={Icon.ArrowNe}
+                          onAction={() =>
+                            openPath(it.path, prefs.openWithEditor, { line: it.line, col: it.col })
+                          }
+                        />
+                        <Action
+                          title="在文件管理器中显示"
+                          icon={Icon.Finder}
+                          shortcut={{ modifiers: ["cmd"], key: "return" }}
+                          onAction={() =>
+                            revealInFileManager(it.path, prefs.fileManagerPrefer || "qspace")
+                          }
+                        />
+                        <Action
+                          title="复制路径"
+                          icon={Icon.Clipboard}
+                          shortcut={{ modifiers: ["opt"], key: "return" }}
+                          onAction={() =>
+                            it.line ? copyPathLine(it.path, it.line) : copyPath(it.path)
+                          }
+                        />
+                      </>
+                    )}
+                  </ActionPanel>
+                ) : undefined
+              }
+            />
+          );
+        })}
       {!error && !isLoading && items.length === 0 ? (
         <List.EmptyView title="无结果" description="↩ 无操作 · 可改关键词或加 in / e / t" />
       ) : null}

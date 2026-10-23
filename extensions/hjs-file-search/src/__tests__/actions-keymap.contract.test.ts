@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-describe("R2 contract: action key map", () => {
+describe("contract: action key map + Detail A", () => {
   it("SearchList declares cmd+return reveal and opt+return copy", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const src = readFileSync(join(here, "../components/SearchList.tsx"), "utf8");
@@ -14,17 +14,22 @@ describe("R2 contract: action key map", () => {
     expect(src).toMatch(/filtering=\{false\}/);
   });
 
-  it("group rows expose ctrl+return expand + Action.Push FcExpandList", () => {
+  it("scheme A: isShowingDetail + group Detail markdown; Push expand is secondary", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const src = readFileSync(join(here, "../components/SearchList.tsx"), "utf8");
+    expect(src).toMatch(/isShowingDetail=\{showDetail\}/);
+    expect(src).toMatch(/List\.Item\.Detail/);
+    expect(src).toMatch(/formatGroupDetailMarkdown/);
+    expect(src).toMatch(/打开最佳行/);
+    expect(src).toMatch(/打开第 \$\{h\.line\} 行/);
     expect(src).toMatch(/modifiers:\s*\["ctrl"\]/);
-    expect(src).toMatch(/展开这个文件的命中/);
+    expect(src).toMatch(/在独立列表展开/);
     expect(src).toMatch(/Action\.Push/);
     expect(src).toMatch(/FcExpandList/);
     expect(src).toMatch(/buildExpandQuery/);
   });
 
-  it("FcExpandList has back + path:line copy", () => {
+  it("FcExpandList has back + path:line copy (secondary)", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const src = readFileSync(join(here, "../components/FcExpandList.tsx"), "utf8");
     expect(src).toMatch(/返回分组列表/);

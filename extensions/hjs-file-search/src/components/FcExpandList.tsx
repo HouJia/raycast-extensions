@@ -2,7 +2,7 @@ import { Action, ActionPanel, Color, getPreferenceValues, Icon, List, useNavigat
 import { useCachedPromise } from "@raycast/utils";
 import { copyPathLine, openPath, revealInFileManager } from "../actions/fileActions";
 import { runContentSearch } from "../search/runContentSearch";
-import type { SearchItem } from "../search/types";
+import type { ContentProfile, SearchItem } from "../search/types";
 
 type Prefs = {
   engineRoot?: string;
@@ -17,16 +17,21 @@ function iconFor(it: SearchItem) {
 }
 
 /**
- * fc 展开视图：逐行命中 + 「← 返回分组列表」。
- * 查询走 Alfred 同合同「原查询 ++ f "文件名"」。
+ * 次要入口：独立列表展开（方案 A 默认用侧栏 Detail，⌃↩ 仍可 Push 到这里）。
  */
-export function FcExpandList(props: { expandQuery: string; groupTitle?: string }) {
+export function FcExpandList(props: {
+  expandQuery: string;
+  groupTitle?: string;
+  profile?: ContentProfile;
+}) {
   const prefs = getPreferenceValues<Prefs>();
   const { pop } = useNavigation();
+  const profile = props.profile || "fc";
 
   const { data, isLoading, error, revalidate } = useCachedPromise(
-    async (eq: string) => runContentSearch({ query: eq, engineDir: prefs.engineRoot }),
-    [props.expandQuery],
+    async (eq: string, p: ContentProfile) =>
+      runContentSearch({ query: eq, profile: p, engineDir: prefs.engineRoot }),
+    [props.expandQuery, profile],
     { keepPreviousData: true },
   );
 

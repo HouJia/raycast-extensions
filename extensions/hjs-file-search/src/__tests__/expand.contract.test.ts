@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildExpandQuery, mapAlfredItem, stripExpandSuffix } from "../search/alfredJson";
+import { formatGroupDetailMarkdown, formatPathDetailMarkdown } from "../search/contentDetail";
+import type { SearchItem } from "../search/types";
 
-describe("R2 contract: fc expand query ↔ Alfred", () => {
+describe("contract: fc expand query ↔ Alfred + Detail A", () => {
   it("buildExpandQuery matches group_fc.expand_query shape", () => {
     expect(buildExpandQuery("培养 学习 t txt", "/tmp/foo/【滴滴五面】.md")).toBe(
       '培养 学习 t txt ++ f "【滴滴五面】.md"',
@@ -54,5 +56,56 @@ describe("R2 contract: fc expand query ↔ Alfred", () => {
     expect(line.kind).toBe("file");
     expect(line.line).toBe(12);
     expect(line.col).toBe(3);
+  });
+
+  it("formatGroupDetailMarkdown lists line + fragment; path detail for non-group", () => {
+    const group: SearchItem = {
+      id: "g",
+      title: "2 处 · a.md",
+      subtitle: "",
+      path: "/tmp/a.md",
+      kind: "group",
+      valid: true,
+      line: 10,
+    };
+    const lines: SearchItem[] = [
+      {
+        id: "1",
+        title: "hello world",
+        subtitle: "",
+        path: "/tmp/a.md",
+        kind: "file",
+        valid: true,
+        line: 10,
+      },
+      {
+        id: "2",
+        title: "second hit",
+        subtitle: "",
+        path: "/tmp/a.md",
+        kind: "file",
+        valid: true,
+        line: 22,
+      },
+    ];
+    const md = formatGroupDetailMarkdown(group, lines);
+    expect(md).toContain("/tmp/a.md");
+    expect(md).toContain("| 10 |");
+    expect(md).toContain("hello world");
+    expect(md).toContain("| 22 |");
+    expect(formatGroupDetailMarkdown(group, [], { loading: true })).toContain("正在加载");
+
+    const file: SearchItem = {
+      id: "f",
+      title: "a.md",
+      subtitle: "meta",
+      path: "/tmp/a.md",
+      kind: "file",
+      valid: true,
+      line: 3,
+    };
+    const pathMd = formatPathDetailMarkdown(file);
+    expect(pathMd).toContain("/tmp/a.md");
+    expect(pathMd).toContain("行 3");
   });
 });
