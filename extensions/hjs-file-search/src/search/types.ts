@@ -16,12 +16,15 @@ export type SearchResponse = {
   profile: string;
 };
 
+/** 内容检索档位（与 Alfred fc / fct / fcl / fclt 对齐） */
+export type ContentProfile = "fc" | "fct" | "fcl" | "fclt";
+
 /** 与 Alfred 同名的列表入口 */
 export type ListProfile =
   | "ff"
   | "ffw"
   | "fd"
-  | "fc"
+  | ContentProfile
   | "flrecent"
   | "flnewest"
   | "fldownload"
@@ -32,3 +35,7 @@ export type ListProfile =
   | "flwindows"
   | "flwindow"
   | "flfav";
+
+export function isContentProfile(p: string): p is ContentProfile {
+  return p === "fc" || p === "fct" || p === "fcl" || p === "fclt";
+}

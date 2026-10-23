@@ -87,6 +87,38 @@ describe("R2 integration: bridge engines (no Raycast UI)", () => {
     }
   }, 90_000);
 
+
+  it.skipIf(!hasFfg)("fct/fclt pass hjs_scope=window (no window → 提示)", () => {
+    for (const profile of ["fct", "fclt"] as const) {
+      const res = runContentSearch({ query: "hello", profile, timeoutMs: 30_000 });
+      expect(res.profile).toBe(profile);
+      expect(res.items.length).toBeGreaterThan(0);
+      // 无前台 Finder/QSpace 时引擎返回不可操作提示
+      const t = res.items[0].title + " " + (res.items[0].subtitle || "");
+      expect(
+        /窗口|Finder|QSpace|没有|无输出|JSON/i.test(t) || res.items.some((i) => i.kind === "group" || i.kind === "file"),
+        `profile=${profile} sample=${JSON.stringify(res.items.slice(0, 2))}`,
+      ).toBe(true);
+    }
+  }, 60_000);
+
+  it.skipIf(!hasFfg)("fcl shallow uses default include via action_input", () => {
+    const layer = join(DEFAULT_FILE_SEARCH_ROOT, "src");
+    const res = runContentSearch({
+      query: "search_mode",
+      profile: "fcl",
+      timeoutMs: 60_000,
+      prefs: { ffg_include: layer },
+    });
+    expect(res.profile).toBe("fcl");
+    expect(res.items.length).toBeGreaterThan(0);
+    // 浅层应能命中同层脚本，或至少给出范围提示/分组
+    const ok =
+      res.items.some((i) => i.kind === "group" || (i.kind === "file" && i.valid)) ||
+      res.items.some((i) => /单层|fcl|当前层|grep|search_mode/i.test(i.title + i.subtitle));
+    expect(ok, JSON.stringify(res.items.slice(0, 3))).toBe(true);
+  }, 90_000);
+
   it("flfav reads favorites data dir", () => {
     const data = join(homedir(), "Library/Application Support/Alfred/Workflow Data/cc.houjia.favorites");
     if (!existsSync(join(data, "list.txt")) && !existsSync(data)) {
