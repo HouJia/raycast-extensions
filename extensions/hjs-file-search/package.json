@@ -1,0 +1,146 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "hjs-file-search",
+  "title": "hjs-File Search",
+  "description": "与 Alfred ff/ffw/fd/fc/fl 同语法的文件检索；复用 hjs-launcher-core TS 核心。HouJia 维护。",
+  "icon": "extension-icon.png",
+  "author": "HouJia",
+  "categories": [
+    "Productivity",
+    "System"
+  ],
+  "platforms": [
+    "macOS"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "ff",
+      "title": "Search Files (ff)",
+      "description": "按名搜文件；同 Alfred ff 语法",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "query…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "ffw",
+      "title": "Search Files Work (ffw)",
+      "description": "工作路径档位；同 Alfred ffw",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "query…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "fd",
+      "title": "Search Folders (fd)",
+      "description": "按名搜文件夹；同 Alfred fd",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "query…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "fc",
+      "title": "Search Contents (fc)",
+      "description": "内容检索；同 Alfred fc（本轮经桥接）",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "query…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "flrecent",
+      "title": "Recent Files (flrecent)",
+      "description": "最近文件；同 Alfred flrecent 语法过滤",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "preferences": [
+    {
+      "name": "engineRoot",
+      "title": "Alfred 引擎目录",
+      "description": "含 search.py 的目录；默认指向 Wiki tools/hjs-file-search/engine",
+      "type": "directory",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "openWithEditor",
+      "title": "文本编辑器",
+      "description": "打开文本/代码时使用的应用名（空则系统默认）",
+      "type": "textfield",
+      "required": false,
+      "default": "Zed"
+    },
+    {
+      "name": "fileManagerPrefer",
+      "title": "文件管理器",
+      "description": "reveal/open 目录优先：qspace（默认）或 finder",
+      "type": "dropdown",
+      "required": false,
+      "default": "qspace",
+      "data": [
+        {
+          "title": "QSpace 优先",
+          "value": "qspace"
+        },
+        {
+          "title": "Finder",
+          "value": "finder"
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "1.104.18",
+    "@raycast/utils": "2.2.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.1.1",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "^10.0.1",
+    "prettier": "^3.8.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.7"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "test": "vitest run",
+    "sync-core": "zsh scripts/sync-core.sh"
+  },
+  "type": "module"
+}
