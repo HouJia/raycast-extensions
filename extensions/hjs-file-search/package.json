@@ -73,7 +73,133 @@
     {
       "name": "flrecent",
       "title": "Recent Files (flrecent)",
-      "description": "最近文件；同 Alfred flrecent 语法过滤",
+      "description": "最近改过的文件；同 Alfred flrecent",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "flnewest",
+      "title": "Newest in Front Folder (flnewest)",
+      "description": "前台窗口/下载桌面按加入时间；同 Alfred flnewest",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "fldownload",
+      "title": "Downloads (fldownload)",
+      "description": "下载文件夹；同 Alfred fldownload",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "fldesktop",
+      "title": "Desktop (fldesktop)",
+      "description": "桌面；同 Alfred fldesktop",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "flfolder",
+      "title": "Custom Folder (flfolder)",
+      "description": "配置目录一层；同 Alfred flfolder",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "fltag",
+      "title": "Tagged Files (fltag)",
+      "description": "按标签；同 Alfred fltag",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "fltrash",
+      "title": "Trash (fltrash)",
+      "description": "废纸篓；同 Alfred fltrash",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "flwindows",
+      "title": "All Windows (flwindows)",
+      "description": "所有 Finder/QSpace 窗口；同 Alfred flwindows",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "flwindow",
+      "title": "Front Window (flwindow)",
+      "description": "前台窗口；同 Alfred flwindow",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "filter…",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "flfav",
+      "title": "Favorites (flfav)",
+      "description": "收藏列表；同 Alfred flfav",
       "mode": "view",
       "arguments": [
         {
@@ -90,6 +216,14 @@
       "name": "engineRoot",
       "title": "Alfred 引擎目录",
       "description": "含 search.py 的目录；默认指向 Wiki tools/hjs-file-search/engine",
+      "type": "directory",
+      "required": false,
+      "default": ""
+    },
+    {
+      "name": "qfaRoot",
+      "title": "Quick File Access 工作流目录",
+      "description": "含 scripts/window.py 的 hjs-Quick File Access 目录；空则用本机默认安装路径",
       "type": "directory",
       "required": false,
       "default": ""

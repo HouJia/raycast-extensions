@@ -14,11 +14,31 @@ describe("R2 contract: action key map", () => {
     expect(src).toMatch(/filtering=\{false\}/);
   });
 
+  it("group rows expose ctrl+return expand + Action.Push FcExpandList", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(here, "../components/SearchList.tsx"), "utf8");
+    expect(src).toMatch(/modifiers:\s*\["ctrl"\]/);
+    expect(src).toMatch(/展开这个文件的命中/);
+    expect(src).toMatch(/Action\.Push/);
+    expect(src).toMatch(/FcExpandList/);
+    expect(src).toMatch(/buildExpandQuery/);
+  });
+
+  it("FcExpandList has back + path:line copy", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(here, "../components/FcExpandList.tsx"), "utf8");
+    expect(src).toMatch(/返回分组列表/);
+    expect(src).toMatch(/copyPathLine/);
+    expect(src).toMatch(/路径:行号/);
+    expect(src).toMatch(/filtering=\{false\}/);
+  });
+
   it("fileActions uses shared hjs-filemanager for reveal", () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const src = readFileSync(join(here, "../actions/fileActions.ts"), "utf8");
     expect(src).toMatch(/resolveFileManager/);
     expect(src).toMatch(/reveal/);
     expect(src).toMatch(/Clipboard\.copy/);
+    expect(src).toMatch(/copyPathLine/);
   });
 });

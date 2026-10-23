@@ -1,92 +1,70 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { resolveEngineDir } from "./paths";
-import type { SearchItem, SearchResponse } from "./types";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import { mapAlfredOut, type AlfredOut } from "./alfredJson";
+import { resolveFileSearchRoot } from "./paths";
+import type { SearchResponse } from "./types";
 
-export function runContentSearch(opts: { query: string; engineDir?: string }): SearchResponse {
-  const engineDir = resolveEngineDir(opts.engineDir);
-  const root = dirname(engineDir);
-  const candidates = [join(root, "src", "search_content.py"), join(root, "src", "grep.sh")];
-  const script = candidates.find((p) => existsSync(p));
-  if (!script) {
-    return {
-      query: opts.query,
-      profile: "fc",
-      items: [
-        {
-          id: "fc-missing",
-          title: "内容搜索脚本未找到",
-          subtitle: `期望 ${candidates[0]}`,
-          path: "",
-          kind: "hint",
-          valid: false,
-        },
-      ],
-    };
-  }
-  const isPy = script.endsWith(".py");
-  const proc = spawnSync(
-    isPy ? "/usr/bin/python3" : "/bin/zsh",
-    isPy ? [script, opts.query || ""] : [script, opts.query || ""],
-    {
-      env: { ...process.env, profile: "fc", hjs_reopen_kw: "fc" },
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-      timeout: 180_000,
-      cwd: dirname(script),
-    },
+function hint(title: string, subtitle: string, query: string): SearchResponse {
+  return {
+    query,
+    profile: "fc",
+    items: [{ id: "fc-hint", title, subtitle, path: "", kind: "hint", valid: false }],
+  };
+}
+
+/**
+ * 内容检索：走 Alfred 同路径 ffg-entry.sh（内含分组 / ++ 展开 / 展开缓存）。
+ * 不要直接调 search_content.py（那是 grep.sh 的子步骤，不会吐 Alfred JSON）。
+ */
+export function runContentSearch(opts: {
+  query: string;
+  engineDir?: string;
+  timeoutMs?: number;
+}): SearchResponse {
+  const root = resolveFileSearchRoot(opts.engineDir);
+  const entry = [join(root, "src", "ffg-entry.sh"), join(root, "src", "grep.sh")].find((p) =>
+    existsSync(p),
   );
+  if (!entry) {
+    return hint("内容搜索脚本未找到", `期望 ${root}/src/ffg-entry.sh`, opts.query);
+  }
+
+  const cache =
+    process.env.alfred_workflow_cache ||
+    join(homedir(), "Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/cc.houjia.file-search");
+
+  const proc = spawnSync("/bin/zsh", [entry, opts.query || ""], {
+    env: {
+      ...process.env,
+      profile: "fc",
+      hjs_reopen_kw: "fc",
+      hjs_profile: "fc",
+      alfred_workflow_cache: cache,
+      // 无 Alfred 调试噪声
+      alfred_debug: "0",
+    },
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    timeout: opts.timeoutMs ?? 180_000,
+    cwd: root,
+  });
+
   const raw = (proc.stdout || "").trim();
   if (!raw) {
-    return {
-      query: opts.query,
-      profile: "fc",
-      items: [
-        {
-          id: "fc-empty",
-          title: "内容搜索无输出",
-          subtitle: (proc.stderr || "").slice(0, 200) || `code=${proc.status}`,
-          path: "",
-          kind: "hint",
-          valid: false,
-        },
-      ],
-    };
+    return hint(
+      "内容搜索无输出",
+      (proc.stderr || "").slice(0, 200) || `code=${proc.status}`,
+      opts.query,
+    );
   }
-  let data: { items?: Array<Record<string, unknown>> };
+
+  let data: AlfredOut;
   try {
     data = JSON.parse(raw);
   } catch {
-    return {
-      query: opts.query,
-      profile: "fc",
-      items: [
-        {
-          id: "fc-bad-json",
-          title: "内容搜索 JSON 解析失败",
-          subtitle: raw.slice(0, 180),
-          path: "",
-          kind: "hint",
-          valid: false,
-        },
-      ],
-    };
+    return hint("内容搜索 JSON 解析失败", raw.slice(0, 180), opts.query);
   }
-  const items: SearchItem[] = (data.items || []).map((it, i) => {
-    const vars = (it.variables || {}) as Record<string, string>;
-    const path = String(it.arg || vars.filepath || "");
-    return {
-      id: String(it.uid || path || i),
-      title: String(it.title || path || "(无标题)"),
-      subtitle: String(it.subtitle || ""),
-      path,
-      kind: it.hjs_hint_row ? "hint" : it.hjs_fc_group ? "group" : "file",
-      line: vars.linenum ? Number(vars.linenum) : undefined,
-      col: vars.colnum ? Number(vars.colnum) : undefined,
-      valid: it.valid !== false && Boolean(path),
-      variables: vars,
-    };
-  });
-  return { items, query: opts.query || "", profile: "fc" };
+  return mapAlfredOut(data, opts.query || "", "fc");
 }

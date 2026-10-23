@@ -11,6 +11,17 @@ export async function copyPath(path: string, opts?: { hud?: string }): Promise<v
   await showHUD(opts?.hud || "已复制路径");
 }
 
+/** 明细行：复制 path:line（对齐 Alfred ⌥） */
+export async function copyPathLine(path: string, line?: number): Promise<void> {
+  if (!path) {
+    await showToast({ style: Toast.Style.Failure, title: "无路径可复制" });
+    return;
+  }
+  const text = line && line > 0 ? `${path}:${line}` : path;
+  await Clipboard.copy(text);
+  await showHUD(line && line > 0 ? "已复制 路径:行号" : "已复制路径");
+}
+
 export async function revealInFileManager(path: string, prefer: "qspace" | "finder" = "qspace"): Promise<void> {
   if (!path) {
     await showToast({ style: Toast.Style.Failure, title: "无路径可显示" });
@@ -32,12 +43,30 @@ export async function revealInFileManager(path: string, prefer: "qspace" | "find
   await closeMainWindow({ clearRootSearch: false });
 }
 
-export async function openPath(path: string, editor?: string): Promise<void> {
+export async function openPath(
+  path: string,
+  editor?: string,
+  opts?: { line?: number; col?: number },
+): Promise<void> {
   if (!path) {
     await showToast({ style: Toast.Style.Failure, title: "无路径可打开" });
     return;
   }
-  const args = editor && editor.trim() ? ["-a", editor.trim(), path] : [path];
+  const line = opts?.line && opts.line > 0 ? opts.line : undefined;
+  const col = opts?.col && opts.col > 0 ? opts.col : undefined;
+  const ed = (editor || "").trim();
+
+  // Zed / Cursor / VS Code 风格 path:line:col
+  if (ed && line) {
+    const target = col ? `${path}:${line}:${col}` : `${path}:${line}`;
+    const proc = spawnSync("/usr/bin/open", ["-a", ed, target], { encoding: "utf8" });
+    if (proc.status === 0) {
+      await closeMainWindow({ clearRootSearch: false });
+      return;
+    }
+  }
+
+  const args = ed ? ["-a", ed, path] : [path];
   const proc = spawnSync("/usr/bin/open", args, { encoding: "utf8" });
   if (proc.status !== 0) {
     await showToast({
